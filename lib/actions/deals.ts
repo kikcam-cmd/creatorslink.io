@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { num, s, sn, withError } from "@/lib/form";
+import { cb, num, s, sn, withError } from "@/lib/form";
 
 const dealSchema = z.object({
   title: z.string().min(1, "Deal title is required"),
@@ -13,10 +13,18 @@ const dealSchema = z.object({
   status: z.enum(["negotiating", "active", "completed", "cancelled"]),
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
-  total_value: z.number().nonnegative("Value can't be negative").nullable(),
+  total_value: z.number().nonnegative("Retainer amount can't be negative").nullable(),
   currency: z.string().min(1),
   notes: z.string().nullable(),
+  usage_rights: z.boolean(),
+  usage_rights_amount: z
+    .number()
+    .nonnegative("Usage rights amount can't be negative")
+    .nullable(),
+  usage_rights_basis: z.enum(["per_video", "package"]).nullable(),
 });
+
+type DealData = z.infer<typeof dealSchema>;
 
 function parse(fd: FormData) {
   const currency = s(fd, "currency");
@@ -30,7 +38,19 @@ function parse(fd: FormData) {
     total_value: num(fd, "total_value"),
     currency: currency || "USD",
     notes: sn(fd, "notes"),
+    usage_rights: cb(fd, "usage_rights"),
+    usage_rights_amount: num(fd, "usage_rights_amount"),
+    usage_rights_basis: sn(fd, "usage_rights_basis"),
   });
+}
+
+// When usage rights is off, null out its amount/basis so a disabled toggle
+// can't leave stale values; when on, default the basis to per-video.
+function normalizeUsageRights(data: DealData): DealData {
+  if (!data.usage_rights) {
+    return { ...data, usage_rights_amount: null, usage_rights_basis: null };
+  }
+  return { ...data, usage_rights_basis: data.usage_rights_basis ?? "per_video" };
 }
 
 export async function createDeal(fd: FormData) {
@@ -42,7 +62,7 @@ export async function createDeal(fd: FormData) {
 
   const { data, error } = await supabase
     .from("deals")
-    .insert({ owner_id: user.id, ...parsed.data })
+    .insert({ owner_id: user.id, ...normalizeUsageRights(parsed.data) })
     .select("id")
     .single();
   if (error) redirect(withError("/deals", error.message));
@@ -61,7 +81,10 @@ export async function updateDeal(fd: FormData) {
     redirect(withError(`/deals/${id}?edit=1`, parsed.error.issues[0].message));
   }
 
-  const { error } = await supabase.from("deals").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("deals")
+    .update(normalizeUsageRights(parsed.data))
+    .eq("id", id);
   if (error) redirect(withError(`/deals/${id}?edit=1`, error.message));
 
   revalidatePath("/deals");

@@ -19,6 +19,11 @@ export function num(fd: FormData, key: string): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/** Checkbox: true when present (browsers omit unchecked boxes entirely). */
+export function cb(fd: FormData, key: string): boolean {
+  return fd.get(key) != null;
+}
+
 /** Build a redirect target with an `error` query param. */
 export function withError(path: string, message: string): string {
   const sep = path.includes("?") ? "&" : "?";

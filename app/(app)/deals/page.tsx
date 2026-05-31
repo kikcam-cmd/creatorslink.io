@@ -5,11 +5,14 @@ import {
   DEAL_STATUSES,
   DEAL_STATUS_LABELS,
   DEAL_TYPE_LABELS,
+  USAGE_RIGHTS_BASIS_SUFFIX,
   type Brand,
   type Deal,
+  type DeliverableStatus,
 } from "@/lib/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyExact } from "@/lib/format";
 import { DealStatusBadge } from "@/components/status-badge";
+import { UsageRightsField } from "@/components/usage-rights-field";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +29,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type DealWithBrand = Deal & { brands: { name: string } | null };
+type DealRow = Deal & {
+  brands: { name: string } | null;
+  deliverables: { status: DeliverableStatus }[];
+};
 
 export default async function DealsPage({
   searchParams,
@@ -39,12 +45,12 @@ export default async function DealsPage({
   const [{ data: deals }, { data: brands }] = await Promise.all([
     supabase
       .from("deals")
-      .select("*, brands(name)")
+      .select("*, brands(name), deliverables(status)")
       .order("created_at", { ascending: false }),
     supabase.from("brands").select("id, name").order("name"),
   ]);
 
-  const list = (deals ?? []) as DealWithBrand[];
+  const list = (deals ?? []) as DealRow[];
   const brandList = (brands ?? []) as Pick<Brand, "id" | "name">[];
 
   return (
@@ -112,7 +118,7 @@ export default async function DealsPage({
             </div>
             <div>
               <Label htmlFor="total_value" className="mb-1.5">
-                Total value
+                Retainer Amount
               </Label>
               <Input
                 id="total_value"
@@ -135,6 +141,12 @@ export default async function DealsPage({
               </Label>
               <Input id="end_date" name="end_date" type="date" />
             </div>
+            <UsageRightsField
+              defaultChecked={false}
+              defaultAmount=""
+              defaultBasis={null}
+              currency="USD"
+            />
             <input type="hidden" name="currency" value="USD" />
             <div className="sm:col-span-2">
               <Label htmlFor="notes" className="mb-1.5">
@@ -165,38 +177,68 @@ export default async function DealsPage({
                 <TableHead>Brand</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Value</TableHead>
+                <TableHead>Deliverables</TableHead>
+                <TableHead className="text-right">Retainer Amount</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {list.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/deals/${d.id}`}
-                      className="hover:text-[var(--cl-accent)] hover:underline underline-offset-4"
-                    >
-                      {d.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {d.brands?.name ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {DEAL_TYPE_LABELS[d.type]}
-                  </TableCell>
-                  <TableCell>
-                    <DealStatusBadge status={d.status} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatMoney(d.total_value, d.currency ?? "USD")}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(d.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {list.map((d) => {
+                const total = d.deliverables?.length ?? 0;
+                const done =
+                  d.deliverables?.filter((x) => x.status === "approved")
+                    .length ?? 0;
+                return (
+                  <TableRow key={d.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/deals/${d.id}`}
+                        className="hover:text-[var(--cl-accent)] hover:underline underline-offset-4"
+                      >
+                        {d.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {d.brands?.name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {DEAL_TYPE_LABELS[d.type]}
+                    </TableCell>
+                    <TableCell>
+                      <DealStatusBadge status={d.status} />
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {total === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <>
+                          {done}/{total}
+                          <span className="text-muted-foreground"> done</span>
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatMoney(d.total_value, d.currency ?? "USD")}
+                      {d.usage_rights && d.usage_rights_amount != null ? (
+                        <div className="text-xs text-muted-foreground">
+                          +{" "}
+                          {formatMoneyExact(
+                            d.usage_rights_amount,
+                            d.currency ?? "USD",
+                          )}{" "}
+                          {d.usage_rights_basis
+                            ? USAGE_RIGHTS_BASIS_SUFFIX[d.usage_rights_basis]
+                            : ""}{" "}
+                          usage
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(d.created_at)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Card>

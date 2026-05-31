@@ -22,6 +22,7 @@ import {
   DELIVERABLE_STATUS_LABELS,
   PAYMENT_STATUSES,
   PAYMENT_STATUS_LABELS,
+  USAGE_RIGHTS_BASIS_SUFFIX,
   effectivePaymentStatus,
   isOutstanding,
   type Brand,
@@ -32,6 +33,7 @@ import {
 import { todayStr } from "@/lib/dates";
 import { formatDate, formatMoney, formatMoneyExact } from "@/lib/format";
 import { DealStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
+import { UsageRightsField } from "@/components/usage-rights-field";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +176,7 @@ export default async function DealDetailPage({
               </div>
               <div>
                 <Label htmlFor="total_value" className="mb-1.5">
-                  Total value
+                  Retainer Amount
                 </Label>
                 <Input
                   id="total_value"
@@ -207,6 +209,16 @@ export default async function DealDetailPage({
                   defaultValue={d.end_date ?? ""}
                 />
               </div>
+              <UsageRightsField
+                defaultChecked={d.usage_rights}
+                defaultAmount={
+                  d.usage_rights_amount != null
+                    ? String(d.usage_rights_amount)
+                    : ""
+                }
+                defaultBasis={d.usage_rights_basis}
+                currency={d.currency ?? "USD"}
+              />
               <input type="hidden" name="currency" value={d.currency ?? "USD"} />
               <div className="sm:col-span-2">
                 <Label htmlFor="notes" className="mb-1.5">
@@ -258,15 +270,48 @@ export default async function DealDetailPage({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div
+            className={`grid gap-4 ${
+              d.usage_rights ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"
+            }`}
+          >
             <Card>
               <CardContent className="pt-5">
-                <div className="text-sm text-muted-foreground">Value</div>
+                <div className="text-sm text-muted-foreground">
+                  Retainer Amount
+                </div>
                 <div className="font-display text-2xl mt-1">
                   {formatMoney(d.total_value, d.currency ?? "USD")}
                 </div>
               </CardContent>
             </Card>
+            {d.usage_rights ? (
+              <Card>
+                <CardContent className="pt-5">
+                  <div className="text-sm text-muted-foreground">
+                    Usage rights
+                  </div>
+                  <div className="font-display text-2xl mt-1">
+                    {d.usage_rights_amount != null ? (
+                      <>
+                        {formatMoneyExact(
+                          d.usage_rights_amount,
+                          d.currency ?? "USD",
+                        )}
+                        {d.usage_rights_basis ? (
+                          <span className="text-sm text-muted-foreground">
+                            {" "}
+                            {USAGE_RIGHTS_BASIS_SUFFIX[d.usage_rights_basis]}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             <Card>
               <CardContent className="pt-5">
                 <div className="text-sm text-muted-foreground">Start</div>

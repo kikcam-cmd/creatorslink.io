@@ -3,6 +3,7 @@
 
 export type DealType = "one_off" | "retainer";
 export type DealStatus = "negotiating" | "active" | "completed" | "cancelled";
+export type UsageRightsBasis = "per_video" | "package";
 export type DeliverableStatus =
   | "todo"
   | "in_progress"
@@ -30,9 +31,13 @@ export type Deal = {
   status: DealStatus;
   start_date: string | null;
   end_date: string | null;
-  total_value: number | null;
+  total_value: number | null; // the retainer amount (UI label: "Retainer Amount")
   currency: string | null;
   notes: string | null;
+  // Usage rights: a separately-priced component of the deal (D-018).
+  usage_rights: boolean;
+  usage_rights_amount: number | string | null;
+  usage_rights_basis: UsageRightsBasis | null;
   created_at: string;
 };
 
@@ -79,6 +84,20 @@ export const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
   active: "Active",
   completed: "Completed",
   cancelled: "Cancelled",
+};
+
+export const USAGE_RIGHTS_BASES: UsageRightsBasis[] = ["per_video", "package"];
+
+export const USAGE_RIGHTS_BASIS_LABELS: Record<UsageRightsBasis, string> = {
+  per_video: "Per video",
+  package: "Package",
+};
+
+// Suffix appended after the amount when displaying usage rights, e.g.
+// "$250.00 / video" or "$1,000.00 (package)".
+export const USAGE_RIGHTS_BASIS_SUFFIX: Record<UsageRightsBasis, string> = {
+  per_video: "/ video",
+  package: "(package)",
 };
 
 // Order is the board flow, left → right.
