@@ -66,12 +66,12 @@ Domain: **creatorslink.io** (secured). Subdomain `inbox.creatorslink.io` reserve
 
 ## 5. Build phases & current status
 
-**Status: PRE-BUILD.** Name finalized, domain secured, nothing built yet. Next action is Phase 0.
+**Status: BUILDING.** Phase 0 shipped (scaffold + Supabase auth + migrations applied + pushed). Phase 1 (tracker core) built locally — pending live verification once env/Vercel git-connect are configured.
 
 | Phase | What | State |
 |---|---|---|
-| 0 | Foundation: scaffold, Supabase, migration, auth, deploy a logged-in empty dashboard | **Next up** |
-| 1 | Tracker core: brands → deals → deliverables → dashboard | Not started |
+| 0 | Foundation: scaffold, Supabase, migration, auth, deploy a logged-in empty dashboard | **Done (code); pending live verify** |
+| 1 | Tracker core: brands → deals → deliverables → dashboard | **Built (code); pending live verify** |
 | 2 | Money tracking (visibility only, no movement) | Not started |
 | 3 | Document vault | Not started |
 | 4 | Reminders (the retention hook) | Not started |
@@ -101,6 +101,7 @@ Full phase detail, scaffold commands, schema, and folder structure: `CreatorsLin
 - **D-013 — Solo + bootstrapped; sequence over timelines.** *(2026-05-30)* Founder's stated constraint. Focus stays on execution and dependency order, not dates.
 - **D-014 — Defer v2 tier thresholds and the creator paid-vs-free line.** *(2026-05-30)* Both need live usage/retention data. Guessing now commits us to numbers we'd defend instead of numbers the data gives us.
 - **D-015 — Dispute handling: brand confirms delivery; CreatorsLink mediates per a three-way agreement; TikTok-API content verification is a later optional plugin.** *(2026-05-30)* Keeps v1 light, puts mediation terms in the creator/brand/CreatorsLink agreement, and automates verification later without blocking launch.
+- **D-016 — Server-first CRUD: server components + server actions + zod, deferring TanStack Query and react-hook-form (shadcn/ui is kept per D-008).** *(2026-05-31)* Phase 0 set the pattern (server actions for auth, no client query cache) and Phase 1 follows it: data is read in server components and mutated via server actions with `revalidatePath`, so TanStack Query's client cache is redundant and RHF's client form state is unneeded for these progressive-enhancement forms. zod still validates every action. shadcn/ui is **not** dropped — its components compose fine inside server-action `<form>`s; they're themed to the brand palette (shadcn's semantic tokens point at `--cl-*` brand vars in `globals.css`), and form `<select>`s use a styled native `<select>` (`components/ui/native-select.tsx`) rather than Base UI's controlled Select. Revisit TanStack/RHF if/when a screen needs genuine client-side interactivity (e.g. optimistic drag-drop on the deliverables board).
 
 ---
 
@@ -136,3 +137,5 @@ First creators come through the founder's direct network — they already hear t
 ## Changelog
 
 - **2026-05-30** — Initial canonical project doc created. Product name finalized as **CreatorsLink**; domain **creatorslink.io** secured. Captured strategy and wedge (§1–§2), two-inbox sequencing (§3), tech stack (§4), build phases/status (§5), Decisions Log D-001–D-015 (§6), Open Questions & Blockers B-001 / Q-001–Q-005 (§7), and GTM (§8). Build Plan and Pre-Build Checklist renamed from "CreatorOS" to "CreatorsLink" and updated (unified `conversations`/`messages` schema with `source` field added; email inbox sequenced as Phase 5 with forwarding-first → CASA-later; on-platform inbox moved to the brand-connection layer).
+- **2026-05-31 (Phase 0)** — Scaffolded the repo: Next.js 16 (App Router) + TypeScript + Tailwind v4, Supabase SSR auth (signup/login, session middleware, protected `(app)` routes, empty dashboard), profiles auto-create trigger. Migrations `0001_init` (full v1 schema incl. unified inbox tables, RLS `owner_id = auth.uid()`) and `0002_profiles_trigger` applied to the Supabase project. Build green; pushed to GitHub.
+- **2026-05-31 (Phase 1)** — Tracker core built: Brands (create/edit/list/delete), Deals (create/edit/list/delete, one-off + retainer, brand-linked) with a deal detail page, Deliverables (create/edit/delete + status board todo→in_progress→submitted→approved/revision), and a dashboard wiring "due this week"/"overdue"/active-deal counts. Added a Settings (profile) page and an Inbox Phase-5 stub. Adopted shadcn/ui (base-nova / Base UI) themed to the brand palette; recorded **D-016** (server-first CRUD, defer TanStack/RHF, keep shadcn+zod). Build + lint green; pending live verification.

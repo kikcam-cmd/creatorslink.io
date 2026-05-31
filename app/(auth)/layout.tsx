@@ -10,9 +10,9 @@ export default function AuthLayout({
       <header className="px-6 py-6">
         <Link
           href="/"
-          className="font-display text-2xl tracking-tight text-[var(--ink)]"
+          className="font-display text-2xl tracking-tight text-[var(--cl-ink)]"
         >
-          Creators<span className="text-[var(--accent)]">Link</span>
+          Creators<span className="text-[var(--cl-accent)]">Link</span>
         </Link>
       </header>
 
@@ -20,7 +20,7 @@ export default function AuthLayout({
         <div className="w-full max-w-sm">{children}</div>
       </main>
 
-      <footer className="px-6 py-6 text-xs text-[var(--muted)]">
+      <footer className="px-6 py-6 text-xs text-[var(--cl-muted)]">
         Run your entire creator-partnership business in one place.
       </footer>
     </div>

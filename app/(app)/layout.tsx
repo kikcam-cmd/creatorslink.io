@@ -36,10 +36,10 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
-      <aside className="border-b md:border-b-0 md:border-r border-[var(--line)] flex md:flex-col md:min-h-screen">
+      <aside className="border-b md:border-b-0 md:border-r border-[var(--cl-line)] flex md:flex-col md:min-h-screen">
         <div className="px-6 py-6">
           <Link href="/dashboard" className="font-display text-xl tracking-tight">
-            Creators<span className="text-[var(--accent)]">Link</span>
+            Creators<span className="text-[var(--cl-accent)]">Link</span>
           </Link>
         </div>
 
@@ -48,7 +48,7 @@ export default async function AppLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-lg px-3 py-2 text-sm text-[var(--muted)] transition hover:bg-black/[0.04] hover:text-[var(--ink)] whitespace-nowrap"
+              className="rounded-lg px-3 py-2 text-sm text-[var(--cl-muted)] transition hover:bg-black/[0.04] hover:text-[var(--cl-ink)] whitespace-nowrap"
             >
               {item.label}
             </Link>
@@ -56,11 +56,11 @@ export default async function AppLayout({
         </nav>
 
         <div className="hidden md:block px-3 pb-6">
-          <div className="px-3 pb-3 text-xs text-[var(--muted)] truncate">{name}</div>
+          <div className="px-3 pb-3 text-xs text-[var(--cl-muted)] truncate">{name}</div>
           <form action={signOut}>
             <button
               type="submit"
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--muted)] transition hover:bg-black/[0.04] hover:text-[var(--ink)]"
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--cl-muted)] transition hover:bg-black/[0.04] hover:text-[var(--cl-ink)]"
             >
               Sign out
             </button>
