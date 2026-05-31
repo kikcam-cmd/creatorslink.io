@@ -49,6 +49,19 @@ export type Deliverable = {
   created_at: string;
 };
 
+export type Payment = {
+  id: string;
+  owner_id: string;
+  deal_id: string;
+  // numeric in Postgres → arrives as number | string.
+  amount: number | string;
+  currency: string | null;
+  due_date: string | null;
+  status: PaymentStatus;
+  paid_date: string | null;
+  created_at: string;
+};
+
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   one_off: "One-off",
   retainer: "Retainer",
@@ -92,3 +105,42 @@ export const OPEN_DELIVERABLE_STATUSES: DeliverableStatus[] = [
   "submitted",
   "revision",
 ];
+
+// Selectable payment statuses. "overdue" is intentionally ABSENT — it is never
+// stored, only derived for display (D-017). A creator sets the workflow state;
+// overdue is computed from due_date + status so it can't go stale.
+export const PAYMENT_STATUSES: PaymentStatus[] = [
+  "expected",
+  "invoiced",
+  "paid",
+];
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  expected: "Expected",
+  invoiced: "Invoiced",
+  paid: "Paid",
+  overdue: "Overdue",
+};
+
+// "Outstanding" = owed but not yet paid (expected + invoiced). Overdue is the
+// past-due *subset* of outstanding, not a separate bucket.
+export function isOutstanding(p: { status: PaymentStatus }): boolean {
+  return p.status === "expected" || p.status === "invoiced";
+}
+
+// Derived overdue: an unpaid payment whose due date is in the past. `today` is
+// passed in (from lib/dates) so the timezone assumption stays centralized.
+export function isPaymentOverdue(
+  p: { status: PaymentStatus; due_date: string | null },
+  today: string,
+): boolean {
+  return isOutstanding(p) && !!p.due_date && p.due_date < today;
+}
+
+// The status to *display*: the stored status, upgraded to "overdue" when due.
+export function effectivePaymentStatus(
+  p: { status: PaymentStatus; due_date: string | null },
+  today: string,
+): PaymentStatus {
+  return isPaymentOverdue(p, today) ? "overdue" : p.status;
+}

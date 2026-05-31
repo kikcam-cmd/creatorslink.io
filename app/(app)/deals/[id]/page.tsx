@@ -9,17 +9,29 @@ import {
   deleteDeliverable,
 } from "@/lib/actions/deliverables";
 import {
+  createPayment,
+  updatePayment,
+  setPaymentStatus,
+  deletePayment,
+} from "@/lib/actions/payments";
+import {
   DEAL_STATUSES,
   DEAL_STATUS_LABELS,
   DEAL_TYPE_LABELS,
   DELIVERABLE_STATUSES,
   DELIVERABLE_STATUS_LABELS,
+  PAYMENT_STATUSES,
+  PAYMENT_STATUS_LABELS,
+  effectivePaymentStatus,
+  isOutstanding,
   type Brand,
   type Deal,
   type Deliverable,
+  type Payment,
 } from "@/lib/types";
-import { formatDate, formatMoney } from "@/lib/format";
-import { DealStatusBadge } from "@/components/status-badge";
+import { todayStr } from "@/lib/dates";
+import { formatDate, formatMoney, formatMoneyExact } from "@/lib/format";
+import { DealStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,31 +51,54 @@ export default async function DealDetailPage({
     error?: string;
     edit?: string;
     edit_deliverable?: string;
+    edit_payment?: string;
   }>;
 }) {
   const { id } = await params;
-  const { error, edit, edit_deliverable } = await searchParams;
+  const { error, edit, edit_deliverable, edit_payment } = await searchParams;
   const { supabase } = await requireUser();
 
-  const [{ data: deal }, { data: deliverables }, { data: brands }] =
-    await Promise.all([
-      supabase.from("deals").select("*, brands(name)").eq("id", id).single(),
-      supabase
-        .from("deliverables")
-        .select("*")
-        .eq("deal_id", id)
-        .order("due_date", { ascending: true, nullsFirst: false }),
-      supabase.from("brands").select("id, name").order("name"),
-    ]);
+  const [
+    { data: deal },
+    { data: deliverables },
+    { data: payments },
+    { data: brands },
+  ] = await Promise.all([
+    supabase.from("deals").select("*, brands(name)").eq("id", id).single(),
+    supabase
+      .from("deliverables")
+      .select("*")
+      .eq("deal_id", id)
+      .order("due_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("deal_id", id)
+      .order("due_date", { ascending: true, nullsFirst: false }),
+    supabase.from("brands").select("id, name").order("name"),
+  ]);
 
   if (!deal) notFound();
 
   const d = deal as DealWithBrand;
   const items = (deliverables ?? []) as Deliverable[];
+  const pays = (payments ?? []) as Payment[];
   const brandList = (brands ?? []) as Pick<Brand, "id" | "name">[];
   const editingDeliverable = edit_deliverable
     ? items.find((x) => x.id === edit_deliverable)
     : undefined;
+  const editingPayment = edit_payment
+    ? pays.find((x) => x.id === edit_payment)
+    : undefined;
+
+  const today = todayStr();
+  const dealCurrency = d.currency ?? "USD";
+  const paidTotal = pays
+    .filter((p) => p.status === "paid")
+    .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+  const outstandingTotal = pays
+    .filter(isOutstanding)
+    .reduce((t, p) => t + (Number(p.amount) || 0), 0);
 
   const byStatus = new Map<string, Deliverable[]>(
     DELIVERABLE_STATUSES.map((s) => [s, [] as Deliverable[]]),
@@ -466,25 +501,199 @@ export default async function DealDetailPage({
         </div>
       )}
 
-      {/* ===== Phase 2 / 3 placeholders ===== */}
-      <div className="grid gap-4 sm:grid-cols-2 mt-10">
-        <Card>
-          <CardContent className="pt-5">
-            <div className="text-sm font-medium">Payments</div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Tracking who owes what lands in Phase 2.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <div className="text-sm font-medium">Documents</div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Contracts &amp; briefs vault lands in Phase 3.
-            </p>
-          </CardContent>
-        </Card>
+      {/* ===== Payments ===== */}
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-3 mb-4">
+        <h2 className="font-display text-2xl">
+          Payments{" "}
+          <span className="text-muted-foreground text-lg">({pays.length})</span>
+        </h2>
+        <div className="flex gap-6 text-sm">
+          <div>
+            <span className="text-muted-foreground">Paid </span>
+            <span className="tabular-nums font-medium">
+              {formatMoneyExact(paidTotal, dealCurrency)}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Outstanding </span>
+            <span className="tabular-nums font-medium">
+              {formatMoneyExact(outstandingTotal, dealCurrency)}
+            </span>
+          </div>
+        </div>
       </div>
+
+      {/* Add / edit payment */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="font-display text-xl">
+            {editingPayment ? "Edit payment" : "Add a payment"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            action={editingPayment ? updatePayment : createPayment}
+            className="grid gap-4 sm:grid-cols-2"
+          >
+            <input type="hidden" name="deal_id" value={d.id} />
+            <input type="hidden" name="currency" value={dealCurrency} />
+            {editingPayment ? (
+              <input type="hidden" name="id" value={editingPayment.id} />
+            ) : null}
+            <div>
+              <Label htmlFor="amount" className="mb-1.5">
+                Amount ({dealCurrency})
+              </Label>
+              <Input
+                id="amount"
+                name="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                defaultValue={
+                  editingPayment ? String(editingPayment.amount) : ""
+                }
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="pstatus" className="mb-1.5">
+                Status
+              </Label>
+              <NativeSelect
+                id="pstatus"
+                name="status"
+                defaultValue={editingPayment?.status ?? "expected"}
+              >
+                {PAYMENT_STATUSES.map((v) => (
+                  <option key={v} value={v}>
+                    {PAYMENT_STATUS_LABELS[v]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor="pdue_date" className="mb-1.5">
+                Due date
+              </Label>
+              <Input
+                id="pdue_date"
+                name="due_date"
+                type="date"
+                defaultValue={editingPayment?.due_date ?? ""}
+              />
+            </div>
+            <div>
+              <Label htmlFor="paid_date" className="mb-1.5">
+                Paid date{" "}
+                <span className="text-muted-foreground font-normal">
+                  (auto-set when marked paid)
+                </span>
+              </Label>
+              <Input
+                id="paid_date"
+                name="paid_date"
+                type="date"
+                defaultValue={editingPayment?.paid_date ?? ""}
+              />
+            </div>
+            <div className="sm:col-span-2 flex gap-3">
+              <Button type="submit">
+                {editingPayment ? "Save payment" : "Add payment"}
+              </Button>
+              {editingPayment ? (
+                <Button
+                  variant="outline"
+                  render={<Link href={`/deals/${d.id}`} />}
+                >
+                  Cancel
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {pays.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--cl-line)] p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            No payments tracked yet. Add what this deal pays — and when — above.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[var(--cl-line)]">
+          {pays.map((p, i) => {
+            const eff = effectivePaymentStatus(p, today);
+            return (
+              <div
+                key={p.id}
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${
+                  i > 0 ? "border-t border-[var(--cl-line)]" : ""
+                }`}
+              >
+                <div className="font-display text-lg tabular-nums w-28">
+                  {formatMoneyExact(p.amount, p.currency ?? dealCurrency)}
+                </div>
+                <PaymentStatusBadge status={eff} />
+                <div className="text-sm text-muted-foreground min-w-0 flex-1">
+                  {p.status === "paid"
+                    ? `Paid ${formatDate(p.paid_date)}`
+                    : `Due ${formatDate(p.due_date)}`}
+                </div>
+
+                <form action={setPaymentStatus} className="flex items-center gap-1.5">
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="deal_id" value={d.id} />
+                  <NativeSelect
+                    name="status"
+                    defaultValue={p.status}
+                    className="h-7 text-xs"
+                  >
+                    {PAYMENT_STATUSES.map((v) => (
+                      <option key={v} value={v}>
+                        {PAYMENT_STATUS_LABELS[v]}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Button type="submit" size="xs" variant="outline">
+                    Set
+                  </Button>
+                </form>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    render={
+                      <Link href={`/deals/${d.id}?edit_payment=${p.id}`} />
+                    }
+                  >
+                    Edit
+                  </Button>
+                  <form action={deletePayment}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="deal_id" value={d.id} />
+                    <Button variant="ghost" size="xs" type="submit">
+                      Delete
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ===== Phase 3 placeholder ===== */}
+      <Card className="mt-10">
+        <CardContent className="pt-5">
+          <div className="text-sm font-medium">Documents</div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Contracts &amp; briefs vault lands in Phase 3.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
