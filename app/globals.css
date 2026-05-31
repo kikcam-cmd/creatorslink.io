@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/*
+  CreatorsLink theme.
+  If you already ran `shadcn init` and it generated a globals.css with its own
+  :root tokens, DO NOT replace that file — instead paste just the :root block
+  below into it. These variables are what the Phase 0 screens reference.
+*/
+
+:root {
+  --paper: #faf8f3; /* warm off-white background */
+  --ink: #16130d; /* near-black text */
+  --muted: #6e675b; /* secondary text */
+  --line: #e6e1d6; /* hairline borders */
+  --card: #ffffff; /* surfaces */
+  --accent: #1f9d57; /* "paid" green — the one accent */
+  --accent-ink: #0b3d22; /* text on accent */
+  --danger: #c4452f; /* errors / overdue */
+}
+
+* {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
