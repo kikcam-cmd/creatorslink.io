@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { sn, withError } from "@/lib/form";
+import { cb, sn, withError } from "@/lib/form";
 
 export async function updateProfile(fd: FormData) {
   const { supabase, user } = await requireUser();
@@ -14,6 +14,8 @@ export async function updateProfile(fd: FormData) {
       display_name: sn(fd, "display_name"),
       handle: sn(fd, "handle"),
       niche: sn(fd, "niche"),
+      // Opt-out: an unchecked box is omitted from FormData, so cb() → false.
+      email_reminders: cb(fd, "email_reminders"),
     })
     .eq("id", user.id);
   if (error) redirect(withError("/settings", error.message));

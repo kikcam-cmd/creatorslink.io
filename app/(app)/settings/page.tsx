@@ -16,7 +16,7 @@ export default async function SettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, handle, niche")
+    .select("display_name, handle, niche, email_reminders")
     .eq("id", user.id)
     .single();
 
@@ -71,6 +71,24 @@ export default async function SettingsPage({
             <div>
               <Label className="mb-1.5">Email</Label>
               <Input defaultValue={user.email ?? ""} disabled />
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--cl-line)] p-3">
+              <input
+                id="email_reminders"
+                name="email_reminders"
+                type="checkbox"
+                defaultChecked={profile?.email_reminders ?? true}
+                className="mt-0.5 h-4 w-4 accent-[var(--cl-accent)]"
+              />
+              <div>
+                <Label htmlFor="email_reminders" className="font-medium">
+                  Email me daily reminders
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  A daily digest of deliverables and payments that are overdue or
+                  due in the next 7 days. Sent only when you have something due.
+                </p>
+              </div>
             </div>
             <Button type="submit">Save profile</Button>
           </form>
