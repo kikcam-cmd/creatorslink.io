@@ -11,6 +11,7 @@ export type DeliverableStatus =
   | "approved"
   | "revision";
 export type PaymentStatus = "expected" | "invoiced" | "paid" | "overdue";
+export type DocumentType = "contract" | "brief" | "invoice" | "other";
 
 export type Brand = {
   id: string;
@@ -69,6 +70,57 @@ export type Payment = {
   paid_date: string | null;
   created_at: string;
 };
+
+export type Document = {
+  id: string;
+  owner_id: string;
+  deal_id: string | null;
+  name: string; // display name (original filename unless the creator overrode it)
+  storage_path: string; // key in the private `documents` bucket — never the filename (D-020)
+  type: DocumentType | null;
+  created_at: string;
+};
+
+export const DOCUMENT_TYPES: DocumentType[] = [
+  "contract",
+  "brief",
+  "invoice",
+  "other",
+];
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  contract: "Contract",
+  brief: "Brief",
+  invoice: "Invoice",
+  other: "Other",
+};
+
+// Upload constraints (D-020). The upload runs through a server action, so it
+// must stay under next.config's serverActions.bodySizeLimit ("4mb" = 4,194,304B)
+// AND Vercel's ~4.5MB serverless request-body cap. This app-level cap sits
+// *below* bodySizeLimit (4,000,000 < 4,194,304) on purpose: bodySizeLimit gates
+// the WHOLE multipart body (file + boundaries + the name/type fields), so a file
+// sized exactly at the limit would push the body over it and trip Next's own
+// error before this action runs — leaving headroom keeps our friendly message
+// the one the user sees. The bucket's file_size_limit (4 MiB) is the backstop.
+// Large-file uploads (direct-to-storage via a signed upload URL, bypassing the
+// function body) are deferred — see D-020.
+export const MAX_DOCUMENT_BYTES = 4_000_000; // ~3.8 MiB, under the 4mb body limit
+
+export const ALLOWED_DOCUMENT_MIME: string[] = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
+
+// `accept` attribute for the file <input> — mirrors the bucket's allowed_mime_types.
+export const DOCUMENT_ACCEPT = ALLOWED_DOCUMENT_MIME.join(",");
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   one_off: "One-off",

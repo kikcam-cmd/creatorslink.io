@@ -14,6 +14,7 @@ import {
   setPaymentStatus,
   deletePayment,
 } from "@/lib/actions/payments";
+import { uploadDocument, deleteDocument } from "@/lib/actions/documents";
 import {
   DEAL_STATUSES,
   DEAL_STATUS_LABELS,
@@ -23,6 +24,9 @@ import {
   PAYMENT_STATUSES,
   PAYMENT_STATUS_LABELS,
   USAGE_RIGHTS_BASIS_SUFFIX,
+  DOCUMENT_TYPES,
+  DOCUMENT_TYPE_LABELS,
+  DOCUMENT_ACCEPT,
   effectivePaymentStatus,
   isOutstanding,
   isSubmittedToBrand,
@@ -30,6 +34,7 @@ import {
   type Deal,
   type Deliverable,
   type Payment,
+  type Document,
 } from "@/lib/types";
 import { todayStr } from "@/lib/dates";
 import { formatDate, formatMoney, formatMoneyExact } from "@/lib/format";
@@ -66,6 +71,7 @@ export default async function DealDetailPage({
     { data: deal },
     { data: deliverables },
     { data: payments },
+    { data: documents },
     { data: brands },
   ] = await Promise.all([
     supabase.from("deals").select("*, brands(name)").eq("id", id).single(),
@@ -79,6 +85,11 @@ export default async function DealDetailPage({
       .select("*")
       .eq("deal_id", id)
       .order("due_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("documents")
+      .select("*")
+      .eq("deal_id", id)
+      .order("created_at", { ascending: false }),
     supabase.from("brands").select("id, name").order("name"),
   ]);
 
@@ -87,6 +98,7 @@ export default async function DealDetailPage({
   const d = deal as DealWithBrand;
   const items = (deliverables ?? []) as Deliverable[];
   const pays = (payments ?? []) as Payment[];
+  const docs = (documents ?? []) as Document[];
   const brandList = (brands ?? []) as Pick<Brand, "id" | "name">[];
   const editingDeliverable = edit_deliverable
     ? items.find((x) => x.id === edit_deliverable)
@@ -781,15 +793,112 @@ export default async function DealDetailPage({
         </div>
       )}
 
-      {/* ===== Phase 3 placeholder ===== */}
-      <Card className="mt-10">
-        <CardContent className="pt-5">
-          <div className="text-sm font-medium">Documents</div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Contracts &amp; briefs vault lands in Phase 3.
-          </p>
+      {/* ===== Documents ===== */}
+      <h2 className="mt-10 font-display text-2xl mb-4">
+        Documents{" "}
+        <span className="text-muted-foreground text-lg">({docs.length})</span>
+      </h2>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="font-display text-xl">
+            Upload a document
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            action={uploadDocument}
+            encType="multipart/form-data"
+            className="grid gap-4 sm:grid-cols-2"
+          >
+            <input type="hidden" name="deal_id" value={d.id} />
+            <div className="sm:col-span-2">
+              <Label htmlFor="file" className="mb-1.5">
+                File
+              </Label>
+              <Input
+                id="file"
+                name="file"
+                type="file"
+                required
+                accept={DOCUMENT_ACCEPT}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Contract, brief, invoice, or image · PDF / Office / image, up to
+                4MB.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="docname" className="mb-1.5">
+                Name{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="docname"
+                name="name"
+                placeholder="Defaults to the file name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="doctype" className="mb-1.5">
+                Type
+              </Label>
+              <NativeSelect id="doctype" name="type" defaultValue="other">
+                {DOCUMENT_TYPES.map((v) => (
+                  <option key={v} value={v}>
+                    {DOCUMENT_TYPE_LABELS[v]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="sm:col-span-2">
+              <Button type="submit">Upload</Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
+
+      {docs.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--cl-line)] p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            No documents yet. Upload the contract, brief, or invoice above.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[var(--cl-line)]">
+          {docs.map((doc, i) => (
+            <div
+              key={doc.id}
+              className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${
+                i > 0 ? "border-t border-[var(--cl-line)]" : ""
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{doc.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {doc.type ? DOCUMENT_TYPE_LABELS[doc.type] : "Other"} · added{" "}
+                  {formatDate(doc.created_at)}
+                </div>
+              </div>
+              <a
+                href={`/deals/${d.id}/documents/${doc.id}`}
+                className="text-sm text-[var(--cl-accent)] hover:underline underline-offset-4"
+              >
+                Download ↓
+              </a>
+              <form action={deleteDocument}>
+                <input type="hidden" name="id" value={doc.id} />
+                <input type="hidden" name="deal_id" value={d.id} />
+                <Button variant="ghost" size="xs" type="submit">
+                  Delete
+                </Button>
+              </form>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
