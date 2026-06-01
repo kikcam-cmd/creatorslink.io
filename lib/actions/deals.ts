@@ -16,6 +16,11 @@ const dealSchema = z.object({
   total_value: z.number().nonnegative("Retainer amount can't be negative").nullable(),
   currency: z.string().min(1),
   notes: z.string().nullable(),
+  deliverable_target: z
+    .number()
+    .int("Number of videos must be a whole number")
+    .nonnegative("Number of videos can't be negative")
+    .nullable(),
   usage_rights: z.boolean(),
   usage_rights_amount: z
     .number()
@@ -38,6 +43,7 @@ function parse(fd: FormData) {
     total_value: num(fd, "total_value"),
     currency: currency || "USD",
     notes: sn(fd, "notes"),
+    deliverable_target: num(fd, "deliverable_target"),
     usage_rights: cb(fd, "usage_rights"),
     usage_rights_amount: num(fd, "usage_rights_amount"),
     usage_rights_basis: sn(fd, "usage_rights_basis"),

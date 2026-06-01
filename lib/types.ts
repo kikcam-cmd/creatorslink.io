@@ -34,6 +34,9 @@ export type Deal = {
   total_value: number | null; // the retainer amount (UI label: "Retainer Amount")
   currency: string | null;
   notes: string | null;
+  // How many deliverables (videos) the deal is contracted for; drives the
+  // submission progress bar. Null = no agreed count.
+  deliverable_target: number | null;
   // Usage rights: a separately-priced component of the deal (D-018).
   usage_rights: boolean;
   usage_rights_amount: number | string | null;
@@ -124,6 +127,21 @@ export const OPEN_DELIVERABLE_STATUSES: DeliverableStatus[] = [
   "submitted",
   "revision",
 ];
+
+// "Submitted to the brand": has been sent at least once. `revision` still
+// counts — it was submitted, the brand just wants changes. Drives the deal's
+// submission progress bar (submitted ÷ deliverable_target). Forward-compatible
+// with the real brand-portal submission flow (a "submit" action will move a
+// deliverable into one of these states).
+export const SUBMITTED_DELIVERABLE_STATUSES: DeliverableStatus[] = [
+  "submitted",
+  "approved",
+  "revision",
+];
+
+export function isSubmittedToBrand(status: DeliverableStatus): boolean {
+  return SUBMITTED_DELIVERABLE_STATUSES.includes(status);
+}
 
 // Selectable payment statuses. "overdue" is intentionally ABSENT — it is never
 // stored, only derived for display (D-017). A creator sets the workflow state;

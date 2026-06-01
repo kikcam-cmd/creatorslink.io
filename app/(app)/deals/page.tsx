@@ -6,6 +6,7 @@ import {
   DEAL_STATUS_LABELS,
   DEAL_TYPE_LABELS,
   USAGE_RIGHTS_BASIS_SUFFIX,
+  isSubmittedToBrand,
   type Brand,
   type Deal,
   type DeliverableStatus,
@@ -141,6 +142,19 @@ export default async function DealsPage({
               </Label>
               <Input id="end_date" name="end_date" type="date" />
             </div>
+            <div>
+              <Label htmlFor="deliverable_target" className="mb-1.5">
+                Number of videos
+              </Label>
+              <Input
+                id="deliverable_target"
+                name="deliverable_target"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 10"
+              />
+            </div>
             <UsageRightsField
               defaultChecked={false}
               defaultAmount=""
@@ -185,9 +199,10 @@ export default async function DealsPage({
             <TableBody>
               {list.map((d) => {
                 const total = d.deliverables?.length ?? 0;
-                const done =
-                  d.deliverables?.filter((x) => x.status === "approved")
+                const submitted =
+                  d.deliverables?.filter((x) => isSubmittedToBrand(x.status))
                     .length ?? 0;
+                const denom = d.deliverable_target ?? total;
                 return (
                   <TableRow key={d.id}>
                     <TableCell className="font-medium">
@@ -208,12 +223,15 @@ export default async function DealsPage({
                       <DealStatusBadge status={d.status} />
                     </TableCell>
                     <TableCell className="tabular-nums">
-                      {total === 0 ? (
+                      {denom === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <>
-                          {done}/{total}
-                          <span className="text-muted-foreground"> done</span>
+                          {submitted}/{denom}
+                          <span className="text-muted-foreground">
+                            {" "}
+                            submitted
+                          </span>
                         </>
                       )}
                     </TableCell>

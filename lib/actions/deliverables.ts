@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { s, sn, withError } from "@/lib/form";
+import { cb, s, sn, withError } from "@/lib/form";
 
 const STATUS = z.enum([
   "todo",
@@ -28,7 +28,9 @@ function parse(fd: FormData) {
     title: s(fd, "title"),
     description: sn(fd, "description"),
     platform: sn(fd, "platform"),
-    due_date: sn(fd, "due_date"),
+    // Due date is optional and gated by a checkbox — a deliverable has no
+    // deadline unless one was agreed. Box unticked ⇒ always null.
+    due_date: cb(fd, "has_due_date") ? sn(fd, "due_date") : null,
     status: s(fd, "status") || "todo",
     content_url: sn(fd, "content_url"),
   });

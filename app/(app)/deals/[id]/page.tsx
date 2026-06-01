@@ -25,6 +25,7 @@ import {
   USAGE_RIGHTS_BASIS_SUFFIX,
   effectivePaymentStatus,
   isOutstanding,
+  isSubmittedToBrand,
   type Brand,
   type Deal,
   type Deliverable,
@@ -34,6 +35,7 @@ import { todayStr } from "@/lib/dates";
 import { formatDate, formatMoney, formatMoneyExact } from "@/lib/format";
 import { DealStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { UsageRightsField } from "@/components/usage-rights-field";
+import { DueDateField } from "@/components/due-date-field";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +103,18 @@ export default async function DealDetailPage({
   const outstandingTotal = pays
     .filter(isOutstanding)
     .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+
+  // Submission progress. Numerator = deliverables submitted to the brand;
+  // denominator = the contracted target if set, else the rows that exist.
+  const submittedCount = items.filter((x) =>
+    isSubmittedToBrand(x.status),
+  ).length;
+  const progressTarget = d.deliverable_target ?? items.length;
+  const progressPct =
+    progressTarget > 0
+      ? Math.min(100, Math.round((submittedCount / progressTarget) * 100))
+      : 0;
+  const remaining = Math.max(0, progressTarget - submittedCount);
 
   const byStatus = new Map<string, Deliverable[]>(
     DELIVERABLE_STATUSES.map((s) => [s, [] as Deliverable[]]),
@@ -207,6 +221,20 @@ export default async function DealDetailPage({
                   name="end_date"
                   type="date"
                   defaultValue={d.end_date ?? ""}
+                />
+              </div>
+              <div>
+                <Label htmlFor="deliverable_target" className="mb-1.5">
+                  Number of videos
+                </Label>
+                <Input
+                  id="deliverable_target"
+                  name="deliverable_target"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={d.deliverable_target ?? ""}
+                  placeholder="e.g. 10"
                 />
               </div>
               <UsageRightsField
@@ -338,6 +366,34 @@ export default async function DealDetailPage({
         </div>
       )}
 
+      {/* ===== Submission progress ===== */}
+      {progressTarget > 0 ? (
+        <div className="mb-8 rounded-xl border border-[var(--cl-line)] bg-[var(--cl-card)] p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Deliverables submitted</span>
+            <span className="text-sm tabular-nums">
+              {submittedCount}/{progressTarget}
+              {d.deliverable_target == null ? (
+                <span className="text-muted-foreground"> (no target set)</span>
+              ) : remaining > 0 ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {remaining} remaining
+                </span>
+              ) : (
+                <span className="text-[var(--cl-accent-ink)]"> · complete</span>
+              )}
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-[var(--cl-accent)] transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {/* ===== Add / edit deliverable ===== */}
       <Card className="mb-8">
         <CardHeader>
@@ -378,13 +434,8 @@ export default async function DealDetailPage({
               />
             </div>
             <div>
-              <Label htmlFor="due_date" className="mb-1.5">
-                Due date
-              </Label>
-              <Input
-                id="due_date"
-                name="due_date"
-                type="date"
+              <DueDateField
+                defaultChecked={editingDeliverable?.due_date != null}
                 defaultValue={editingDeliverable?.due_date ?? ""}
               />
             </div>
